@@ -9,8 +9,8 @@
  *
  * @wordpress-plugin
  * Plugin Name:       ListExams
- * Plugin URI:        https://example.com/plugin-name
- * Description:       Listagem de Exames.
+ * Plugin URI:        https://github.com/ksombrah/listexams
+ * Description:       Listagem de Exames Clínicos
  * Version:           1.0.3
  * Requires at least: 5.2
  * Requires PHP:      7.2
@@ -19,7 +19,7 @@
  * Text Domain:       list-exams
  * License:           GPL v2 or later
  * License URI:       http://www.gnu.org/licenses/gpl-2.0.txt
- * Update URI:        https://example.com/my-plugin/
+ * Update URI:        https://github.com/ksombrah/listexams
  */
  
  /*
