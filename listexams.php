@@ -111,24 +111,43 @@ function list_exams_html ()
   "@context": "https://schema.org",
   "@type": "MedicalTestPanel",
   "name": "Lista de Exames",
-  "hasPart": [';
+  "subTest": [';
   	for ($h=0; $h < count($hasPart); $h++)
   		{
   		$retorno .= '
     {
       "@type": "MedicalTest",
-      "name": "'.$hasPart[$h].'"
-    },';
+      "name": "'.str_replace('"','\"',$hasPart[$h]).'",
+	   "mainEntityOfPage": {
+	    "@type": "WebPage",
+	    "@id": "https://artemislaboratorio.com.br/"
+	    }
+    }';
+    	if (($h >= 0)&&($h < (count($hasPart) - 1) ))
+    		{
+    		$retorno .= ',';
+    		}
     	}
-  $retorno .= '],
-  "provider": {
-    "@type": "MedicalOrganization",
-    "name": "Artemis Laboratório",
-    "url": "https://artemislaboratorio.com.br/"
+  $retorno .= '
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "MedicalOrganization",
+  "name": "Artemis Laboratório",
+  "url": "https://artemislaboratorio.com.br/",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "Rua Hilda Bergo Duarte, 1090 - Vila Planalto",
+    "addressLocality": "Dourados",
+    "addressRegion": "Mato Grosso do Sul",
+    "postalCode": "79826-090",
+    "addressCountry": "BR"
   }
 }
 </script>
-
 	';
 	return $retorno;
 	} 
