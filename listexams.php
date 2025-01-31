@@ -61,6 +61,23 @@ function listexams_install()
 
 	require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
 	dbDelta( $sql );
+	
+	// Verificar se a tabela está vazia
+    $row_count = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
+
+    if ($row_count == 0) 
+    	{
+		//carregando base
+		$sql_file = plugin_dir_path(__FILE__) . 'data/exams.sql';
+		$sql = file_get_contents($sql_file);
+		$wpdb->query($sql);
+		if (!empty($wpdb->last_error)) 
+			{
+    		error_log('Erro encontrado: ' . $wpdb->last_error);
+    		return;
+			}
+		}
+
 
 	add_option( 'listexams_db_version', $listexams_db_version );
 	}
@@ -153,7 +170,163 @@ function list_exams_html ()
 	} 
 	
 add_shortcode('list_exams_data','list_exams_html');
+
 add_filter('list_exams_db','list_exams_func');
+
+// Adiciona o menu ao painel do WordPress
+add_action('admin_menu', 'list_exams_add_admin_menu');
+
+function list_exams_add_admin_menu() 
+	{
+   add_menu_page(
+   	'Configuração Listagem de Exames', // Título da página
+      'Lista de Exames',              // Nome do menu
+      'manage_options',                     // Permissão necessária
+      'list_exams_settings',           // Slug do menu
+      'list_exams_router',       // Função que exibe a página
+      'dashicons-admin-generic',             // Ícone do menu
+      25                                     // Posição do menu
+    	);
+	}
+	
+function list_exams_settings_page() 
+	{
+   global $wpdb;
+   global $table_name
+   
+   // Tratamento de exclusão de registros
+   if (isset($_GET['delete_id'])) 
+   	{
+      $id = intval($_GET['delete_id']);
+      $wpdb->delete($table_name, ['id' => $id]);
+      echo '<div class="updated"><p>Exame excluído com sucesso!</p></div>';
+    	}
+
+ 	// Busca os exames cadastrados
+   $exams = $wpdb->get_results("SELECT * FROM $table_name");
+
+   echo '<div class="wrap">';
+   echo '<h1>Lista de Exames</h1>';
+   echo '<a href="?page=list_exams_settings&action=add" class="button-primary">Adicionar Novo Exame</a><br><br>';
+
+   if ($exams) 
+   	{
+      echo '<table class="wp-list-table widefat fixed striped">';
+      echo '<thead><tr><th>ID</th><th>Nome do Exame</th><th>Prazo</th><th>Conservante</th><th>Material</th><th>Ações</th></tr></thead>';
+      echo '<tbody>';
+      foreach ($exams as $exam) 
+      	{
+         echo '<tr>';
+         echo '<td>' . esc_html($exam->id) . '</td>';
+         echo '<td>' . esc_html($exam->exame) . '</td>';
+         echo '<td>' . esc_html($exam->prazo) . '</td>';
+         echo '<td>' . esc_html($exam->conservante) . '</td>';
+         echo '<td>' . esc_html($exam->material) . '</td>';
+         echo '<td>';
+         echo '<a href="?page=list_exams_settings&action=edit&id=' . esc_attr($exam->id) . '" class="button">Editar</a> ';
+         echo '<a href="?page=list_exams_settings&delete_id=' . esc_attr($exam->id) . '" class="button delete-exam" onclick="return confirm(\'Tem certeza que deseja excluir?\')">Excluir</a>';
+         echo '</td>';
+         echo '</tr>';
+        	}
+      echo '</tbody></table>';
+    	} 
+  	else 
+  		{
+      echo '<p>Nenhum exame cadastrado.</p>';
+    	}
+   echo '</div>';
+	}
+
+function list_exams_handle_form() 
+	{
+   global $wpdb;
+   global $table_name;
+    
+  	$id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+   $exame = '';
+   $prazo = '';
+  	$conservante = '';
+  	$material = '';
+
+   if ($id) 
+   	{
+      // Busca os dados para edição
+      $exam = $wpdb->get_row("SELECT * FROM $table_name WHERE id = $id");
+      if ($exam) 
+      	{
+         $exame = $exam->exame;
+         $prazo = $exam->prazo;
+  			$conservante = $exam->conservante;
+  			$material = $exam->material;
+        	}
+   	}
+
+    if ($_SERVER['REQUEST_METHOD'] == 'POST') 
+    	{
+    	$exame = sanitize_text_field($_POST['exame']);
+      $prazo = sanitize_text_field($_POST['prazo']);
+  		$conservante = sanitize_text_field($_POST['conservante']);
+  		$material = sanitize_text_field($_POST['material']);
+  		$dados = array ('exame' => $exame,'prazo' => $prazo, 'conservante' => $conservante, 'material' =>$material);
+  		$formatos = array ('%s','%d', '%s', '%s');
+        
+     	if ($id) 
+     		{
+         // Atualiza exame existente
+         $wpdb->update($table_name, $dados, ['id' => $id], $formatos);
+         echo '<div class="updated"><p>Exame atualizado com sucesso!</p></div>';
+        	} 
+     	else 
+     		{
+         // Insere novo exame
+         $wpdb->insert($table_name, $dados);
+         if (!empty($wpdb->last_error)) 
+         	{
+    			error_log('Erro: ' . $wpdb->last_error);
+    			return;
+				}
+         echo '<div class="updated"><p>Exame adicionado com sucesso!</p></div>';
+        	}
+    	echo '<a href="?page=list_exams_settings" class="button">Voltar à lista</a>';
+      return;
+    	}
+
+   echo '<h1>' . ($id ? 'Editar' : 'Adicionar') . ' Exame</h1>';
+   echo '<form method="post">';
+   echo '<table class="form-table">';
+   echo '<tr>';
+   echo '<th><label for="name">Nome do Exame</label></th>';
+   echo '<td><input type="text" id="exame" name="exame" value="' . esc_attr($exame) . '" required class="regular-text"></td>';
+   echo '</tr>';
+   echo '<tr>';
+   echo '<th><label for="name">Prazo</label></th>';
+   echo '<td><input type="text" id="prazo" name="prazo" value="' . esc_attr($prazo) . '" required class="regular-text"></td>';
+   echo '</tr>';   
+   echo '<tr>';
+   echo '<th><label for="name">Conservante</label></th>';
+   echo '<td><input type="text" id="conservante" name="conservante" value="' . esc_attr($conservante) . '" required class="regular-text"></td>';
+   echo '</tr>';
+   echo '<tr>';
+   echo '<th><label for="name">Material</label></th>';
+   echo '<td><input type="text" id="material" name="material" value="' . esc_attr($material) . '" required class="regular-text"></td>';
+   echo '</tr>';
+   echo '</table>';
+   echo '<p><input type="submit" class="button-primary" value="Salvar"></p>';
+   echo '</form>';
+	}
+
+function list_exams_router() 
+	{
+   if (isset($_GET['action']) && ($_GET['action'] === 'add' || $_GET['action'] === 'edit')) 
+   	{
+      list_exams_handle_form();
+    	} 
+   else 
+   	{
+      list_exams_settings_page();
+    	}
+	}
+
 	
 register_activation_hook( __FILE__, 'listexams_install' );
 
