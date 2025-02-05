@@ -1,4 +1,4 @@
-insert into wp_list_exams (exame,prazo,conservante,material) values 
+insert into %tabela% (exame,prazo,conservante,material) values 
 (' POLIMORFISMO DO GENE DA ECA',12,'','EDTA'),
 ('17 OH ALFA HIDROXI PROGESTERONA',4,'','SORO'),
 ('17 OH CORTICOSTEROIDE',5,'','URINA 24 HORAS'),

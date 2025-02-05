@@ -11,7 +11,7 @@
  * Plugin Name:       ListExams
  * Plugin URI:        https://github.com/ksombrah/listexams
  * Description:       Listagem de Exames Clínicos
- * Version:           1.0.3
+ * Version:           1.1.0
  * Requires at least: 5.2
  * Requires PHP:      7.2
  * Author:            Alcione Ferreira
@@ -36,6 +36,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with {Plugin Name}. If not, see {URI to Plugin License}.
 */
+global $wpdb;
 global $listexams_db_version;
 $listexams_db_version = '1.0';
 global $table_name;
@@ -51,7 +52,7 @@ function listexams_install()
 	$charset_collate = $wpdb->get_charset_collate();
 
   	$sql = "CREATE TABLE IF NOT EXISTS $table_name (
-    	`id` int(11) NOT NULL,
+    	`id` int(11) NOT NULL AUTO_INCREMENT,
   	`exame` varchar(255) DEFAULT NULL,
 	`prazo` int(11) DEFAULT NULL,
   	`conservante` varchar(255) DEFAULT NULL,
@@ -63,13 +64,14 @@ function listexams_install()
 	dbDelta( $sql );
 	
 	// Verificar se a tabela está vazia
-    $row_count = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
+  	$row_count = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
 
-    if ($row_count == 0) 
-    	{
+   if ($row_count == 0) 
+   	{
 		//carregando base
 		$sql_file = plugin_dir_path(__FILE__) . 'data/exams.sql';
 		$sql = file_get_contents($sql_file);
+		$sql = str_replace('%tabela%',$table_name,$sql);
 		$wpdb->query($sql);
 		if (!empty($wpdb->last_error)) 
 			{
@@ -77,7 +79,6 @@ function listexams_install()
     		return;
 			}
 		}
-
 
 	add_option( 'listexams_db_version', $listexams_db_version );
 	}
@@ -184,7 +185,7 @@ function list_exams_add_admin_menu()
       'manage_options',                     // Permissão necessária
       'list_exams_settings',           // Slug do menu
       'list_exams_router',       // Função que exibe a página
-      'dashicons-admin-generic',             // Ícone do menu
+      'dashicons-pressthis',             // Ícone do menu
       25                                     // Posição do menu
     	);
 	}
@@ -192,7 +193,7 @@ function list_exams_add_admin_menu()
 function list_exams_settings_page() 
 	{
    global $wpdb;
-   global $table_name
+   global $table_name;
    
    // Tratamento de exclusão de registros
    if (isset($_GET['delete_id'])) 
@@ -300,20 +301,48 @@ function list_exams_handle_form()
    echo '</tr>';
    echo '<tr>';
    echo '<th><label for="name">Prazo</label></th>';
-   echo '<td><input type="text" id="prazo" name="prazo" value="' . esc_attr($prazo) . '" required class="regular-text"></td>';
+   echo '<td><input type="text" id="prazo" name="prazo" value="' . esc_attr($prazo) . '"></td>';
    echo '</tr>';   
    echo '<tr>';
    echo '<th><label for="name">Conservante</label></th>';
-   echo '<td><input type="text" id="conservante" name="conservante" value="' . esc_attr($conservante) . '" required class="regular-text"></td>';
+   echo '<td><input type="text" id="conservante" name="conservante" value="' . esc_attr($conservante) . '" ></td>';
    echo '</tr>';
    echo '<tr>';
    echo '<th><label for="name">Material</label></th>';
-   echo '<td><input type="text" id="material" name="material" value="' . esc_attr($material) . '" required class="regular-text"></td>';
+   echo '<td><input type="text" id="material" name="material" value="' . esc_attr($material) . '"></td>';
    echo '</tr>';
    echo '</table>';
    echo '<p><input type="submit" class="button-primary" value="Salvar"></p>';
    echo '</form>';
 	}
+	
+add_action( 'elementor/query/list_exams', function( $query ) 
+	{
+   global $wpdb;
+   global $table_name;
+    
+  	// Recuperar os exames cadastrados
+   $results = $wpdb->get_results( "SELECT * FROM $table_name ORDER BY id DESC" );
+    
+   // Criar array de posts falsos para o Elementor consumir
+   $posts = array_map(function ($exam) 
+   	{
+   	return (object) [
+            'ID' => $exam->id,
+            'post_title' => $exam->exame,
+            'post_date' => date('Y-m-d H:i:s'),
+            'post_content' => $exame->prazo, // Preencha com informações adicionais se necessário
+      	];
+    	}, $results);
+
+ 	// Manipular a query para "injetar" esses dados no Elementor
+   if ( ! empty( $posts ) ) 
+   	{
+      $query->set( 'post_type', 'list_exams_fake_type' );
+      $query->set( 'posts', $posts );
+    	}
+	});
+
 
 function list_exams_router() 
 	{
